@@ -6,6 +6,9 @@ import threading
 
 LISTENING_STATE = 0
 NO_LISTENING_STATE = 1
+folder_paths = []
+file_paths = []
+
 
 # listen background task
 listen_thread = None
@@ -21,6 +24,20 @@ def get_voice_string() -> str:
         except:
             return ""
 
+def addPathRow(parent) :
+
+    row_contener = tk.Frame(parent)
+    path_title = tk.Label(row_contener, text="path : ", bg=cp.misty_rose, anchor='w', width=30)
+    path_title.pack(fill="x")
+    path_label = tk.Label(row_contener, text="test", bg=cp.misty_rose, anchor='w')
+    path_label.pack(fill="x")
+    kw_title = tk.Label(row_contener, text="keywords : ", bg=cp.misty_rose, anchor='w')
+    kw_title.pack(fill="x")
+    keywords_entry = tk.Entry(row_contener, bg=cp.champagne_pink)
+    keywords_entry.pack(fill="x")
+
+    row_contener.pack(fill="x", expand=False, padx=5, pady=5)
+
 
 window = tk.Tk()
 window.configure(background=cp.dark_purple)
@@ -30,6 +47,7 @@ window.wm_maxsize(800, 600)
 # Fonts
 header_font = fonts.Font(family='Courier New', size=36, weight='bold')
 smaller_header_font = fonts.Font(family='Courier New', size=20, weight='bold')
+small_courier = fonts.Font(family='Courier New', size=12, weight='bold')
 
 # Header ( in root )
 
@@ -39,8 +57,80 @@ header_text.pack()
 
 # Center Panel ( in root )
 
-center_panel = tk.Frame(width=750, height=400, bg=cp.misty_rose)
+center_panel = tk.Frame(bg=cp.misty_rose, width=750, height=400)
 center_panel.pack()
+
+# Folders Panel ( in Center Panel )
+
+folders_panel = tk.Frame(center_panel, bg=cp.excel_blue)
+folders_panel.place(relwidth=0.32, relheight=0.96, relx=0.01, rely=0.02)
+
+folders_panel_header = tk.Label(folders_panel, font=smaller_header_font, text='Folders', bg=cp.excel_blue)
+folders_panel_header.pack()
+add_folder_button = tk.Button(folders_panel, text="Add", font=small_courier)
+add_folder_button.pack(pady=10, side='bottom')
+
+## Folder paths Panel
+
+folder_wrapper = tk.LabelFrame(folders_panel)
+
+folder_canvas = tk.Canvas(folder_wrapper, width=220)
+folder_canvas.pack(side="left", fill="y", expand=True)
+
+folder_scrollbar = tk.Scrollbar(folder_wrapper, orient="vertical", command=folder_canvas.yview)
+folder_scrollbar.pack(side="right", fill="y")
+
+folder_canvas.configure(yscrollcommand=folder_scrollbar.set)
+folder_canvas.bind("<Configure>", lambda e: folder_canvas.configure(scrollregion=folder_canvas.bbox('all')))
+
+folder_frame = tk.Frame(folder_canvas, bg=cp.excel_blue)
+folder_canvas.create_window((0, 0), window=folder_frame, anchor="nw")
+
+folder_wrapper.pack(fill="both", expand=True)
+
+addPathRow(folder_frame)
+addPathRow(folder_frame)
+addPathRow(folder_frame)
+addPathRow(folder_frame)
+
+# Files Panel
+
+files_panel = tk.Frame(center_panel, bg=cp.excel_blue)
+files_panel.place(relwidth=0.32, relheight=0.96, relx=0.34, rely=0.02)
+files_panel_header = tk.Label(files_panel, font=smaller_header_font, text='Files', bg=cp.excel_blue)
+files_panel_header.pack()
+add_file_button = tk.Button(files_panel, text="Add", font=small_courier)
+add_file_button.pack(pady=10, side='bottom')
+
+## Files paths Panel
+
+files_wrapper = tk.LabelFrame(files_panel)
+
+files_canvas = tk.Canvas(files_wrapper, width=220)
+files_canvas.pack(side="left", fill="y", expand=True)
+
+files_scrollbar = tk.Scrollbar(files_wrapper, orient="vertical", command=files_canvas.yview)
+files_scrollbar.pack(side="right", fill="y")
+
+files_canvas.configure(yscrollcommand=files_scrollbar.set)
+files_canvas.bind("<Configure>", lambda e: files_canvas.configure(scrollregion=files_canvas.bbox('all')))
+
+files_frame = tk.Frame(files_canvas, bg=cp.excel_blue)
+files_canvas.create_window((0, 0), window=files_frame, anchor="nw")
+
+files_wrapper.pack(fill="both", expand=True)
+
+addPathRow(files_frame)
+addPathRow(files_frame)
+addPathRow(files_frame)
+addPathRow(files_frame)
+addPathRow(files_frame)
+
+
+# Commands Panel
+
+commands_panel = tk.Frame(center_panel, bg=cp.excel_blue)
+commands_panel.place(relwidth=0.32, relheight=0.96, relx=0.67, rely=0.02)
 
 # Listen Panel ( in root )
 
