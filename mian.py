@@ -1,14 +1,15 @@
 import speech_recognition as sr
 import tkinter as tk
+import tkinter.filedialog as fd
 import tkinter.font as fonts
 import color_palette as cp
 import threading
+import os
 
 LISTENING_STATE = 0
 NO_LISTENING_STATE = 1
 folder_paths = []
 file_paths = []
-
 
 # listen background task
 listen_thread = None
@@ -24,19 +25,49 @@ def get_voice_string() -> str:
         except:
             return ""
 
-def addPathRow(parent) :
 
-    row_contener = tk.Frame(parent)
-    path_title = tk.Label(row_contener, text="path : ", bg=cp.misty_rose, anchor='w', width=30)
-    path_title.pack(fill="x")
-    path_label = tk.Label(row_contener, text="test", bg=cp.misty_rose, anchor='w')
+def create_path_widget(parent, path) -> tk.Frame:
+    row_contener = tk.Frame(parent, width=100)
+    path_title_frame = tk.Frame(row_contener, bg=cp.misty_rose)
+    path_title_frame.pack()
+    path_title = tk.Label(path_title_frame, text="path :", bg=cp.misty_rose, anchor='w', width=25)
+    path_title.pack(fill="x", side="left")
+    del_button = tk.Button(path_title_frame, text="del", fg="white", bg="red", command=lambda: row_contener.destroy())
+    del_button.pack(side="right")
+    path_label = tk.Entry(row_contener, bg=cp.champagne_pink)
+    path_label.insert(0, path)
     path_label.pack(fill="x")
     kw_title = tk.Label(row_contener, text="keywords : ", bg=cp.misty_rose, anchor='w')
     kw_title.pack(fill="x")
     keywords_entry = tk.Entry(row_contener, bg=cp.champagne_pink)
     keywords_entry.pack(fill="x")
+    return row_contener
 
+
+def add_path_row(canvas: tk.Canvas, parent: tk.Frame, file_type: str):
+    # for child in parent.winfo_children():
+    #   child.destroy()
+
+    path = None
+    target_array = None
+    if file_type == "folder":
+        path = fd.askdirectory(initialdir='/')
+        target_array = folder_paths
+    elif file_type == "file":
+        title = "Select file"
+        filetypes = [("all files", "*.*")]
+        path = fd.askopenfilename(initialdir='/', title=title, filetypes=filetypes)
+        target_array = file_paths
+    else:
+        raise ValueError('Incorrect file type, valid file types are "file" or "folder"')
+
+    if path == "":
+        return
+
+    row_contener = create_path_widget(parent, path)
+    target_array.append(path)
     row_contener.pack(fill="x", expand=False, padx=5, pady=5)
+    canvas.configure(scrollregion=canvas.bbox('all'))
 
 
 window = tk.Tk()
@@ -88,10 +119,7 @@ folder_canvas.create_window((0, 0), window=folder_frame, anchor="nw")
 
 folder_wrapper.pack(fill="both", expand=True)
 
-addPathRow(folder_frame)
-addPathRow(folder_frame)
-addPathRow(folder_frame)
-addPathRow(folder_frame)
+add_folder_button.configure(command=lambda: add_path_row(folder_canvas, folder_frame, "folder"))
 
 # Files Panel
 
@@ -120,12 +148,7 @@ files_canvas.create_window((0, 0), window=files_frame, anchor="nw")
 
 files_wrapper.pack(fill="both", expand=True)
 
-addPathRow(files_frame)
-addPathRow(files_frame)
-addPathRow(files_frame)
-addPathRow(files_frame)
-addPathRow(files_frame)
-
+add_file_button.configure(command=lambda: add_path_row(files_canvas, files_frame, "file"))
 
 # Commands Panel
 
@@ -151,7 +174,8 @@ BUTTON_STATE = NO_LISTENING_STATE
 
 listen_button = tk.Button(listen_panel, text="Listen", font=smaller_header_font, bg=cp.excel_green)
 
-def active_listen() :
+
+def active_listen():
     global listen_box
     while BUTTON_STATE == LISTENING_STATE:
         voice_string = get_voice_string()
@@ -160,6 +184,7 @@ def active_listen() :
             listen_box.delete("1.0", "end")
             listen_box.insert(tk.INSERT, voice_string)
             listen_box.configure(state="disabled")
+
 
 def listen_button_behaviour():
     global BUTTON_STATE
@@ -172,6 +197,7 @@ def listen_button_behaviour():
     else:
         BUTTON_STATE = NO_LISTENING_STATE
         listen_button.configure(text="Listen", bg=cp.excel_green)
+
 
 listen_button.configure(command=listen_button_behaviour)
 listen_button.place(relheight="0.8", relwidth="0.3", relx="0.02", rely="0.1")
