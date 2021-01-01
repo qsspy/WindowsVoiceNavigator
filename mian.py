@@ -1,4 +1,7 @@
 import speech_recognition as sr
+import subprocess
+import psutil
+import signal
 import tkinter as tk
 import tkinter.filedialog as fd
 import tkinter.font as fonts
@@ -17,6 +20,8 @@ NO_LISTENING_STATE = 1
 folders_with_keywords = dict()
 files_with_keywords = dict()
 commands_with_keywords = dict()
+commands_with_functions = dict()
+opened_apps = dict()
 
 # listen background task
 listen_thread = None
@@ -55,12 +60,12 @@ def create_path_widget(parent, path, kw="") -> tuple:
     kw_title = tk.Label(row_container, text="keywords : ", bg=cp.misty_rose, anchor='w')
     kw_title.pack(fill="x")
     keywords_entry = tk.Entry(row_container, bg=cp.champagne_pink)
-    keywords_entry.insert(0,kw)
+    keywords_entry.insert(0, kw)
     keywords_entry.pack(fill="x")
     return row_container, keywords_entry
 
 
-def create_command_widget(parent, command_name) -> tk.Frame:
+def create_command_widget(parent, command_name, command_function) -> tk.Frame:
     row_container = tk.Frame(parent)
     command_title = tk.Label(row_container, bg=cp.misty_rose, text=f'{command_name} command keywords:', anchor='w',
                              width=31)
@@ -68,6 +73,7 @@ def create_command_widget(parent, command_name) -> tk.Frame:
     command_entry = tk.Entry(row_container, bg=cp.champagne_pink)
     command_entry.pack(fill='x')
     commands_with_keywords[command_name] = command_entry
+    commands_with_functions[command_name] = command_function
     return row_container
 
 
@@ -101,7 +107,7 @@ def add_path_row(canvas: tk.Canvas, parent: tk.Frame, file_type: str):
         print(target_dict)
 
 
-def recreate_path_row(parent: tk.Frame, path : str, kw : str):
+def recreate_path_row(parent: tk.Frame, path: str, kw: str):
     if os.path.exists(path):
         if os.path.isdir(path):
             target_dict = folders_with_keywords
@@ -110,8 +116,6 @@ def recreate_path_row(parent: tk.Frame, path : str, kw : str):
         widget_with_keywords = create_path_widget(parent, path, kw)
         target_dict[path] = widget_with_keywords[1]
         widget_with_keywords[0].pack(fill="x", expand=False, padx=5, pady=5)
-
-
 
 
 def save_app_data_to_file(filename: str):
@@ -126,6 +130,8 @@ def save_app_data_to_file(filename: str):
         f.write(f"{str(files_count)}\n")
         for path in files_with_keywords:
             f.write(f"{path};{files_with_keywords[path].get().strip()}\n")
+        # zapisaywanie slow kluczonwych komendy otwarcia
+        f.write(f"{commands_with_keywords[OPEN_COMMAND_NAME].get().strip()}\n")
 
 
 def load_app_data_from_file(filename: str):
@@ -139,6 +145,7 @@ def load_app_data_from_file(filename: str):
             for i in range(file_count):
                 split_line = f.readline().split(';')
                 recreate_path_row(files_frame, split_line[0], split_line[1])
+            commands_with_keywords[OPEN_COMMAND_NAME].insert(0, f.readline())
 
 
 def on_window_close(window_to_close: tk.Tk):
@@ -146,12 +153,73 @@ def on_window_close(window_to_close: tk.Tk):
     window_to_close.destroy()
 
 
+def run_file(path):
+    real_path = os.path.realpath(path)
+    os.startfile(real_path)
+
+
+def close_file(path):
+    print("Im in closed")
+    if path in opened_apps:
+        print('child pid')
+        print(opened_apps[path])
+        os.kill(opened_apps[path], signal.SIGTERM)
+        del opened_apps[path]
+
+
+def react_to_voice_string(voice_string):
+    folder_names = []
+    file_names = []
+    command_name = None
+    for folder_path in folders_with_keywords:
+        for kw in map(lambda x: x.strip().lower(), folders_with_keywords[folder_path].get().split(',')):
+            if kw in voice_string.lower() and len(kw) != 0:
+                folder_names.append(folder_path)
+                break
+    for file_path in files_with_keywords:
+        for kw in map(lambda x: x.strip().lower(), files_with_keywords[file_path].get().split(',')):
+            if kw in voice_string.lower() and len(kw) != 0:
+                file_names.append(file_path)
+                break
+    for command in commands_with_keywords:
+        match_found = False
+        for kw in map(lambda x: x.strip().lower(), commands_with_keywords[command].get().split(',')):
+            if kw in voice_string.lower() and len(kw) != 0:
+                command_name = command
+                match_found = True
+                break
+        if match_found:
+            break
+
+    print(voice_string)
+    print(folder_names)
+    print(file_names)
+    print(command_name)
+
+    if command_name is None:
+        # nic nie rób bo nie wybrano komendy
+        return
+
+    if not (len(folder_names) == 0 or len(file_names) == 0):
+        # znaleziono obie ścieżki
+        # TODO - Zmienić przy ulepszaniu funkcjonalności
+        for name in folder_names:
+            commands_with_functions[command_name](name)
+        for name in file_names:
+            commands_with_functions[command_name](name)
+
+    elif not len(folder_names) == 0:
+        for name in folder_names:
+            commands_with_functions[command_name](name)
+    elif not len(file_names) == 0:
+        for name in file_names:
+            commands_with_functions[command_name](name)
+
 window = tk.Tk()
 window.configure(background=cp.dark_purple)
 window.wm_minsize(800, 600)
 window.wm_maxsize(800, 600)
 window.protocol("WM_DELETE_WINDOW", lambda: on_window_close(window))
-
 
 # Fonts
 header_font = fonts.Font(family='Courier New', size=36, weight='bold')
@@ -251,8 +319,7 @@ commands_canvas.create_window((0, 0), window=commands_frame, anchor="nw")
 
 commands_wrapper.pack(fill="both", expand=True)
 
-create_command_widget(commands_frame, OPEN_COMMAND_NAME).pack()
-create_command_widget(commands_frame, CLOSE_COMMAND_NAME).pack()
+create_command_widget(commands_frame, OPEN_COMMAND_NAME, run_file).pack()
 
 # Listen Panel ( in root )
 
@@ -283,6 +350,7 @@ def active_listen():
             listen_box.delete("1.0", "end")
             listen_box.insert(tk.INSERT, voice_string)
             listen_box.configure(state="disabled")
+            react_to_voice_string(voice_string)
 
 
 def listen_button_behaviour():
