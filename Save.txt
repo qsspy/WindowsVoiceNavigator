@@ -1,9 +1,9 @@
-3
-C:/Users;u¿ytkowników
-C:/Users/user/Downloads;pobrane pliki
-C:/Users/user/Desktop;pulpit
-3
-C:/Users/user/Desktop/PDFy testowe/7 czerwonych ró¿.pdf;tekst
-C:/Users/user/Desktop/Dokument.txt;dokument
-C:/Users/user/AppData/Local/Programs/Opera/launcher.exe;opera, opere, operê
-otwórz, poka¿ mi, poka¿
+6
+C:/AdwCleaner;
+C:/Intel;
+C:/M1130MFP_M1210MFP_Full_Solution;
+C:/PerfLogs;
+C:/Program Files (x86);
+C:/Users;
+0
+otwórz, poka¿ mi

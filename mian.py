@@ -1,11 +1,10 @@
 import speech_recognition as sr
-import subprocess
-import psutil
-import signal
 import tkinter as tk
 import tkinter.filedialog as fd
 import tkinter.font as fonts
+import tkinter.ttk as ttk
 import tkinter.messagebox as msg
+# import signal
 import color_palette as cp
 import threading
 import os
@@ -13,6 +12,11 @@ import os
 SAVE_FILE_NAME = "Save.txt"
 OPEN_COMMAND_NAME = 'Open'
 CLOSE_COMMAND_NAME = 'Close'
+
+POLISH_LANGUAGE = 'pl'
+ENGLISH_UK_LANGUAGE = 'en-GB'
+ENGLISH_US_LANGUAGE = 'en-US'
+active_language = POLISH_LANGUAGE
 
 LISTENING_STATE = 0
 NO_LISTENING_STATE = 1
@@ -32,7 +36,7 @@ def get_voice_string() -> str:
     with sr.Microphone() as source:
         audio = r.listen(source)
         try:
-            text = r.recognize_google(audio, language="pl")
+            text = r.recognize_google(audio, language=active_language)
             return text
         except:
             return ""
@@ -103,8 +107,8 @@ def add_path_row(canvas: tk.Canvas, parent: tk.Frame, file_type: str):
         widget_with_keywords = create_path_widget(parent, path)
         target_dict[path] = widget_with_keywords[1]
         widget_with_keywords[0].pack(fill="x", expand=False, padx=5, pady=5)
+        window.update()
         canvas.configure(scrollregion=canvas.bbox('all'))
-        print(target_dict)
 
 
 def recreate_path_row(parent: tk.Frame, path: str, kw: str):
@@ -158,13 +162,13 @@ def run_file(path):
     os.startfile(real_path)
 
 
-def close_file(path):
-    print("Im in closed")
-    if path in opened_apps:
-        print('child pid')
-        print(opened_apps[path])
-        os.kill(opened_apps[path], signal.SIGTERM)
-        del opened_apps[path]
+# def close_file(path):
+#    print("Im in closed")
+#    if path in opened_apps:
+#        print('child pid')
+#        print(opened_apps[path])
+#        os.kill(opened_apps[path], signal.SIGTERM)
+#        del opened_apps[path]
 
 
 def react_to_voice_string(voice_string):
@@ -215,7 +219,9 @@ def react_to_voice_string(voice_string):
         for name in file_names:
             commands_with_functions[command_name](name)
 
+
 window = tk.Tk()
+window.title('Windows Voice Navigator')
 window.configure(background=cp.dark_purple)
 window.wm_minsize(800, 600)
 window.wm_maxsize(800, 600)
@@ -368,6 +374,29 @@ def listen_button_behaviour():
 
 listen_button.configure(command=listen_button_behaviour)
 listen_button.place(relheight="0.8", relwidth="0.3", relx="0.02", rely="0.1")
+
+# Language ComboBox
+
+cb_options = ['polish', 'english (UK)', 'english (US)']
+string_var = tk.StringVar()
+
+language_cb = ttk.Combobox(listen_panel, values=cb_options, textvariable=string_var)
+
+
+def on_selection_changed(event = None):
+    global active_language
+    if string_var.get() == cb_options[0]:
+        active_language = POLISH_LANGUAGE
+    elif string_var.get() == cb_options[1]:
+        active_language = ENGLISH_UK_LANGUAGE
+    else:
+        active_language = ENGLISH_US_LANGUAGE
+    print(active_language)
+
+
+language_cb.bind('<<ComboboxSelected>>', on_selection_changed)
+language_cb.current(0)
+language_cb.place(relx="0.33", rely="0.1", relwidth="0.12")
 
 load_app_data_from_file(SAVE_FILE_NAME)
 
