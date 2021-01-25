@@ -5,10 +5,11 @@ import tkinter.font as fonts
 import tkinter.ttk as ttk
 import tkinter.messagebox as msg
 import re
-# import signal
 import color_palette as cp
 import threading
 import os
+
+# =================================== BACKEND ===================================
 
 SAVE_FILE_NAME = "Save.txt"
 OPEN_COMMAND_NAME = 'Open'
@@ -64,7 +65,7 @@ def create_path_widget(parent, path, kw="", exe_name="", add_exe_name_panel=Fals
     path_label.insert(0, path)
     path_label.pack(fill="x")
 
-    exe_entry=None
+    exe_entry = None
 
     if add_exe_name_panel:
         exe_title = tk.Label(row_container, text="EXE name : ", bg=cp.misty_rose, anchor='w')
@@ -118,7 +119,7 @@ def add_path_row(canvas: tk.Canvas, parent: tk.Frame, file_type: str):
     if path in target_dict:
         msg.showerror("Cannot insert", "This file/folder is already on the list.")
     else:
-        widget_with_keywords = create_path_widget(parent, path,add_exe_name_panel=add_exe_entry)
+        widget_with_keywords = create_path_widget(parent, path, add_exe_name_panel=add_exe_entry)
         target_dict[path] = widget_with_keywords[1]
         if add_exe_entry:
             files_with_exe_name[path] = widget_with_keywords[2]
@@ -143,8 +144,6 @@ def recreate_path_row(parent: tk.Frame, path: str, kw: str, exe_name=""):
 
 
 def save_app_data_to_file(filename: str):
-    print(folders_with_keywords)
-    print(files_with_keywords)
     with open(filename, 'w') as f:
         folders_count = len(folders_with_keywords)
         files_count = len(files_with_keywords)
@@ -194,7 +193,6 @@ def close_file(path):
             msg.showerror("Error", f"Exe name {exe_name} is not correct!")
 
 
-
 def react_to_voice_string(voice_string):
     folder_names = []
     file_names = []
@@ -219,18 +217,11 @@ def react_to_voice_string(voice_string):
         if match_found:
             break
 
-    print(voice_string)
-    print(folder_names)
-    print(file_names)
-    print(command_name)
-
     if command_name is None:
         # nic nie rób bo nie wybrano komendy
         return
 
     if not (len(folder_names) == 0 or len(file_names) == 0):
-        # znaleziono obie ścieżki
-        # TODO - Zmienić przy ulepszaniu funkcjonalności
         for name in folder_names:
             commands_with_functions[command_name](name)
         for name in file_names:
@@ -242,6 +233,44 @@ def react_to_voice_string(voice_string):
     elif not len(file_names) == 0:
         for name in file_names:
             commands_with_functions[command_name](name)
+
+
+def active_listen():
+    global listen_box
+    while BUTTON_STATE == LISTENING_STATE:
+        voice_string = get_voice_string()
+        if len(voice_string) != 0:
+            listen_box.configure(state="normal")
+            listen_box.delete("1.0", "end")
+            listen_box.insert(tk.INSERT, voice_string)
+            listen_box.configure(state="disabled")
+            react_to_voice_string(voice_string)
+
+
+def listen_button_behaviour():
+    global BUTTON_STATE
+    global listen_thread
+    if BUTTON_STATE == NO_LISTENING_STATE:
+        BUTTON_STATE = LISTENING_STATE
+        listen_button.configure(text="I'm\nlistening...", bg=cp.excel_blue)
+        listen_thread = threading.Thread(target=active_listen)
+        listen_thread.start()
+    else:
+        BUTTON_STATE = NO_LISTENING_STATE
+        listen_button.configure(text="Listen", bg=cp.excel_green)
+
+
+def on_language_selection_changed(event=None):
+    global active_language
+    if string_var.get() == cb_options[0]:
+        active_language = POLISH_LANGUAGE
+    elif string_var.get() == cb_options[1]:
+        active_language = ENGLISH_UK_LANGUAGE
+    else:
+        active_language = ENGLISH_US_LANGUAGE
+
+
+# =================================== FRONTEND ===================================
 
 
 window = tk.Tk()
@@ -371,32 +400,6 @@ BUTTON_STATE = NO_LISTENING_STATE
 
 listen_button = tk.Button(listen_panel, text="Listen", font=smaller_header_font, bg=cp.excel_green)
 
-
-def active_listen():
-    global listen_box
-    while BUTTON_STATE == LISTENING_STATE:
-        voice_string = get_voice_string()
-        if len(voice_string) != 0:
-            listen_box.configure(state="normal")
-            listen_box.delete("1.0", "end")
-            listen_box.insert(tk.INSERT, voice_string)
-            listen_box.configure(state="disabled")
-            react_to_voice_string(voice_string)
-
-
-def listen_button_behaviour():
-    global BUTTON_STATE
-    global listen_thread
-    if BUTTON_STATE == NO_LISTENING_STATE:
-        BUTTON_STATE = LISTENING_STATE
-        listen_button.configure(text="I'm\nlistening...", bg=cp.excel_blue)
-        listen_thread = threading.Thread(target=active_listen)
-        listen_thread.start()
-    else:
-        BUTTON_STATE = NO_LISTENING_STATE
-        listen_button.configure(text="Listen", bg=cp.excel_green)
-
-
 listen_button.configure(command=listen_button_behaviour)
 listen_button.place(relheight="0.8", relwidth="0.3", relx="0.02", rely="0.1")
 
@@ -407,19 +410,7 @@ string_var = tk.StringVar()
 
 language_cb = ttk.Combobox(listen_panel, values=cb_options, textvariable=string_var)
 
-
-def on_selection_changed(event = None):
-    global active_language
-    if string_var.get() == cb_options[0]:
-        active_language = POLISH_LANGUAGE
-    elif string_var.get() == cb_options[1]:
-        active_language = ENGLISH_UK_LANGUAGE
-    else:
-        active_language = ENGLISH_US_LANGUAGE
-    print(active_language)
-
-
-language_cb.bind('<<ComboboxSelected>>', on_selection_changed)
+language_cb.bind('<<ComboboxSelected>>', on_language_selection_changed)
 language_cb.current(0)
 language_cb.place(relx="0.33", rely="0.1", relwidth="0.12")
 

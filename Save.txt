@@ -1,0 +1,8 @@
+2
+C:/Program Files;folder
+C:/;dysk c
+2
+C:/Users/user/AppData/Local/Programs/Opera/launcher.exe;opera, operê;opera.exe
+C:/Program Files (x86)/Google/Chrome/Application/chrome.exe;chrome, chroma, chrom;chrome.exe
+otwórz
+zamknij
