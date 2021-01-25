@@ -4,6 +4,7 @@ import tkinter.filedialog as fd
 import tkinter.font as fonts
 import tkinter.ttk as ttk
 import tkinter.messagebox as msg
+import re
 # import signal
 import color_palette as cp
 import threading
@@ -23,6 +24,7 @@ NO_LISTENING_STATE = 1
 
 folders_with_keywords = dict()
 files_with_keywords = dict()
+files_with_exe_name = dict()
 commands_with_keywords = dict()
 commands_with_functions = dict()
 opened_apps = dict()
@@ -34,15 +36,15 @@ listen_thread = None
 def get_voice_string() -> str:
     r = sr.Recognizer()
     with sr.Microphone() as source:
-        audio = r.listen(source)
         try:
+            audio = r.listen(source, timeout=3.0)
             text = r.recognize_google(audio, language=active_language)
             return text
         except:
             return ""
 
 
-def create_path_widget(parent, path, kw="") -> tuple:
+def create_path_widget(parent, path, kw="", exe_name="", add_exe_name_panel=False) -> tuple:
     row_container = tk.Frame(parent)
     path_title_frame = tk.Frame(row_container, bg=cp.misty_rose)
     path_title_frame.pack()
@@ -61,12 +63,22 @@ def create_path_widget(parent, path, kw="") -> tuple:
     path_label = tk.Entry(row_container, bg=cp.champagne_pink)
     path_label.insert(0, path)
     path_label.pack(fill="x")
+
+    exe_entry=None
+
+    if add_exe_name_panel:
+        exe_title = tk.Label(row_container, text="EXE name : ", bg=cp.misty_rose, anchor='w')
+        exe_title.pack(fill='x')
+        exe_entry = tk.Entry(row_container, bg=cp.champagne_pink)
+        exe_entry.insert(0, exe_name)
+        exe_entry.pack(fill="x")
+
     kw_title = tk.Label(row_container, text="keywords : ", bg=cp.misty_rose, anchor='w')
     kw_title.pack(fill="x")
     keywords_entry = tk.Entry(row_container, bg=cp.champagne_pink)
     keywords_entry.insert(0, kw)
     keywords_entry.pack(fill="x")
-    return row_container, keywords_entry
+    return row_container, keywords_entry, exe_entry
 
 
 def create_command_widget(parent, command_name, command_function) -> tk.Frame:
@@ -87,6 +99,7 @@ def add_path_row(canvas: tk.Canvas, parent: tk.Frame, file_type: str):
 
     path = None
     target_dict = None
+    add_exe_entry = False
     if file_type == "folder":
         path = fd.askdirectory(initialdir='/')
         target_dict = folders_with_keywords
@@ -95,6 +108,7 @@ def add_path_row(canvas: tk.Canvas, parent: tk.Frame, file_type: str):
         filetypes = [("all files", "*.*")]
         path = fd.askopenfilename(initialdir='/', title=title, filetypes=filetypes)
         target_dict = files_with_keywords
+        add_exe_entry = True
     else:
         raise ValueError('Incorrect file type, valid file types are "file" or "folder"')
 
@@ -104,21 +118,27 @@ def add_path_row(canvas: tk.Canvas, parent: tk.Frame, file_type: str):
     if path in target_dict:
         msg.showerror("Cannot insert", "This file/folder is already on the list.")
     else:
-        widget_with_keywords = create_path_widget(parent, path)
+        widget_with_keywords = create_path_widget(parent, path,add_exe_name_panel=add_exe_entry)
         target_dict[path] = widget_with_keywords[1]
+        if add_exe_entry:
+            files_with_exe_name[path] = widget_with_keywords[2]
         widget_with_keywords[0].pack(fill="x", expand=False, padx=5, pady=5)
         window.update()
         canvas.configure(scrollregion=canvas.bbox('all'))
 
 
-def recreate_path_row(parent: tk.Frame, path: str, kw: str):
+def recreate_path_row(parent: tk.Frame, path: str, kw: str, exe_name=""):
     if os.path.exists(path):
         if os.path.isdir(path):
             target_dict = folders_with_keywords
+            add_exe_name = False
         else:
             target_dict = files_with_keywords
-        widget_with_keywords = create_path_widget(parent, path, kw)
+            add_exe_name = True
+        widget_with_keywords = create_path_widget(parent, path, kw, exe_name, add_exe_name)
         target_dict[path] = widget_with_keywords[1]
+        if add_exe_name:
+            files_with_exe_name[path] = widget_with_keywords[2]
         widget_with_keywords[0].pack(fill="x", expand=False, padx=5, pady=5)
 
 
@@ -133,9 +153,10 @@ def save_app_data_to_file(filename: str):
             f.write(f"{path};{folders_with_keywords[path].get().strip()}\n")
         f.write(f"{str(files_count)}\n")
         for path in files_with_keywords:
-            f.write(f"{path};{files_with_keywords[path].get().strip()}\n")
+            f.write(f"{path};{files_with_keywords[path].get().strip()};{files_with_exe_name[path].get().strip()}\n")
         # zapisaywanie slow kluczonwych komendy otwarcia
         f.write(f"{commands_with_keywords[OPEN_COMMAND_NAME].get().strip()}\n")
+        f.write(f"{commands_with_keywords[CLOSE_COMMAND_NAME].get().strip()}\n")
 
 
 def load_app_data_from_file(filename: str):
@@ -148,8 +169,9 @@ def load_app_data_from_file(filename: str):
             file_count = int(f.readline())
             for i in range(file_count):
                 split_line = f.readline().split(';')
-                recreate_path_row(files_frame, split_line[0], split_line[1])
+                recreate_path_row(files_frame, split_line[0], split_line[1], split_line[2])
             commands_with_keywords[OPEN_COMMAND_NAME].insert(0, f.readline())
+            commands_with_keywords[CLOSE_COMMAND_NAME].insert(0, f.readline())
 
 
 def on_window_close(window_to_close: tk.Tk):
@@ -162,13 +184,15 @@ def run_file(path):
     os.startfile(real_path)
 
 
-# def close_file(path):
-#    print("Im in closed")
-#    if path in opened_apps:
-#        print('child pid')
-#        print(opened_apps[path])
-#        os.kill(opened_apps[path], signal.SIGTERM)
-#        del opened_apps[path]
+def close_file(path):
+    if path in files_with_exe_name:
+        exe_name = files_with_exe_name[path].get().strip()
+        if re.match("^[A-Za-z0-9_]+\\.exe$", exe_name) is not None:
+
+            os.system(f"taskkill /f /im {exe_name}")
+        else:
+            msg.showerror("Error", f"Exe name {exe_name} is not correct!")
+
 
 
 def react_to_voice_string(voice_string):
@@ -326,6 +350,7 @@ commands_canvas.create_window((0, 0), window=commands_frame, anchor="nw")
 commands_wrapper.pack(fill="both", expand=True)
 
 create_command_widget(commands_frame, OPEN_COMMAND_NAME, run_file).pack()
+create_command_widget(commands_frame, CLOSE_COMMAND_NAME, close_file).pack()
 
 # Listen Panel ( in root )
 
