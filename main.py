@@ -28,7 +28,6 @@ files_with_keywords = dict()
 files_with_exe_name = dict()
 commands_with_keywords = dict()
 commands_with_functions = dict()
-opened_apps = dict()
 
 # listen background task
 listen_thread = None
